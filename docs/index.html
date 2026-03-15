@@ -1,0 +1,1843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Platformer - Double Jump Quest</title>
+    <!-- [Preview] Inlined: src/styles/main.css -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+<style id="project-styles">
+:root {
+    --bg: #0f1220;
+    --panel: #1a1f33;
+    --panel-2: #232a45;
+    --text: #e8ecff;
+    --muted: #9aa5d1;
+    --accent: #6f8cff;
+    --accent-2: #9d7bff;
+    --danger: #ff6b7d;
+    --success: #6ee7a8;
+    --radius: 14px;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    width: 100%;
+    min-height: 100%;
+    background: radial-gradient(circle at top, #1a2140 0%, var(--bg) 60%);
+    color: var(--text);
+    font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.app {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    gap: 0.75rem;
+    padding: 0.75rem;
+}
+
+.hud {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(26, 31, 51, 0.85);
+    border: 1px solid rgba(157, 123, 255, 0.2);
+    border-radius: var(--radius);
+    padding: 0.7rem 0.9rem;
+    backdrop-filter: blur(6px);
+}
+
+.hud__left,
+.hud__right,
+.hud__center {
+    display: flex;
+    align-items: center;
+}
+
+.hud__right {
+    justify-content: flex-end;
+}
+
+.hud__right--controls {
+    gap: 0.5rem;
+}
+
+.hud__center {
+    justify-content: center;
+}
+
+.hud__label {
+    color: var(--muted);
+    margin-right: 0.4rem;
+    font-size: 0.9rem;
+}
+
+.hud__value {
+    font-weight: 700;
+    color: var(--success);
+}
+
+.hud__state {
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+}
+
+.game-shell {
+    position: relative;
+    flex: 1;
+    min-height: 52vh;
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid rgba(157, 123, 255, 0.22);
+    background: linear-gradient(180deg, #1c2340, #12172b);
+    box-shadow: var(--shadow);
+}
+
+#gameCanvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.overlay {
+    position: absolute;
+    inset: 0;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    background: rgba(11, 14, 24, 0.72);
+    padding: 1rem;
+}
+
+.overlay--visible {
+    display: flex;
+}
+
+.card {
+    width: min(560px, 100%);
+    background: linear-gradient(180deg, var(--panel), var(--panel-2));
+    border: 1px solid rgba(157, 123, 255, 0.3);
+    border-radius: var(--radius);
+    padding: 1.2rem;
+    box-shadow: var(--shadow);
+}
+
+.card h1,
+.card h2 {
+    margin-top: 0;
+}
+
+.card p,
+.card li {
+    color: var(--muted);
+}
+
+.btn {
+    border: none;
+    border-radius: 10px;
+    padding: 0.7rem 1rem;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.btn:hover,
+.btn:focus-visible {
+    transform: translateY(-1px);
+    opacity: 0.95;
+}
+
+.btn--small {
+    padding: 0.45rem 0.75rem;
+    font-size: 0.85rem;
+}
+
+.touch-controls {
+    display: flex;
+    justify-content: center;
+    padding-bottom: 0.25rem;
+}
+
+.touch-controls__row {
+    width: min(620px, 100%);
+    display: grid;
+    gap: 0.65rem;
+}
+
+.touch-controls__row--4 {
+    grid-template-columns: 1fr 1fr 1.2fr 1.2fr;
+}
+
+.touch-btn {
+    min-height: 52px;
+    border: 1px solid rgba(157, 123, 255, 0.3);
+    border-radius: 12px;
+    background: rgba(35, 42, 69, 0.9);
+    color: var(--text);
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.touch-btn--jump {
+    background: linear-gradient(135deg, #3c63ff, #7a52ff);
+}
+
+.touch-btn--attack {
+    background: linear-gradient(135deg, #ff4d6d, #ff7b42);
+}
+
+@media (min-width: 900px) {
+    .app {
+        padding: 1rem;
+    }
+
+    .touch-controls {
+        justify-content: flex-start;
+    }
+
+    .touch-controls__row {
+        width: 460px;
+    }
+}
+</style>
+</head>
+<body>
+    <main class="app">
+        <header class="hud" aria-label="Game HUD">
+            <div class="hud__left">
+                <span class="hud__label">Score</span>
+                <span id="scoreValue" class="hud__value">0</span>
+            </div>
+            <div class="hud__center">
+                <span id="stateText" class="hud__state">MENU</span>
+            </div>
+            <div class="hud__right hud__right--controls">
+                <button id="musicBtn" class="btn btn--small" type="button" aria-label="Toggle music">
+                    Music: On
+                </button>
+                <button id="pauseBtn" class="btn btn--small" type="button" aria-label="Pause game">
+                    Pause
+                </button>
+            </div>
+        </header>
+
+        <section class="game-shell" aria-label="Platformer game area">
+            <canvas id="gameCanvas" aria-label="2D platformer game canvas"></canvas>
+
+            <div id="menuOverlay" class="overlay overlay--visible" role="dialog" aria-modal="true">
+                <div class="card">
+                    <h1>Double Jump Quest: Evil World</h1>
+                    <p>Collect cursed coins, dodge little fiends, and now blast them with power shots.</p>
+                    <ul>
+                        <li>Move: Arrow Keys or A/D</li>
+                        <li>Jump: Up Arrow / W / Space (double jump enabled)</li>
+                        <li>Attack: F / K / X (or Attack button)</li>
+                        <li>Avoid enemies or you'll lose and restart</li>
+                        <li>Pause: P or button</li>
+                        <li>Music starts when you press Play</li>
+                    </ul>
+                    <button id="playBtn" class="btn" type="button">Play</button>
+                </div>
+            </div>
+
+            <div id="gameOverOverlay" class="overlay" role="dialog" aria-modal="true">
+                <div class="card">
+                    <h2>Game Over</h2>
+                    <p>Final Score: <strong id="finalScore">0</strong></p>
+                    <button id="restartBtn" class="btn" type="button">Restart</button>
+                </div>
+            </div>
+
+            <div id="pauseOverlay" class="overlay" role="dialog" aria-modal="false">
+                <div class="card">
+                    <h2>Paused</h2>
+                    <p>Press P or tap Resume to continue.</p>
+                    <button id="resumeBtn" class="btn" type="button">Resume</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="touch-controls" aria-label="Touch controls">
+            <div class="touch-controls__row touch-controls__row--4">
+                <button id="leftBtn" class="touch-btn" type="button" aria-label="Move left">◀</button>
+                <button id="rightBtn" class="touch-btn" type="button" aria-label="Move right">▶</button>
+                <button id="jumpBtn" class="touch-btn touch-btn--jump" type="button" aria-label="Jump">⤒</button>
+                <button id="attackBtn" class="touch-btn touch-btn--attack" type="button" aria-label="Attack">✦</button>
+            </div>
+        </section>
+    </main>
+
+    <!-- [Preview] Inlined: src/main.js -->
+
+<script>
+// CRASH GUARD: Console capture + error handling + freeze detection + error overlay
+(function() {
+    // FIX: localStorage/sessionStorage polyfill for sandboxed iframes
+    // Without allow-same-origin, localStorage throws SecurityError. Instead of weakening
+    // the sandbox, we provide an in-memory fallback so AI-generated code works.
+    try { window.localStorage.getItem('_t'); } catch(_e) {
+        var _mkStore = function() {
+            var s = {};
+            return {
+                getItem: function(k) { return s.hasOwnProperty(k) ? s[k] : null; },
+                setItem: function(k, v) { s[k] = String(v); },
+                removeItem: function(k) { delete s[k]; },
+                clear: function() { s = {}; },
+                get length() { return Object.keys(s).length; },
+                key: function(i) { var keys = Object.keys(s); return i < keys.length ? keys[i] : null; }
+            };
+        };
+        try { Object.defineProperty(window, 'localStorage', { value: _mkStore(), configurable: true }); } catch(_e2) {}
+        try { Object.defineProperty(window, 'sessionStorage', { value: _mkStore(), configurable: true }); } catch(_e2) {}
+    }
+
+    var logs = [];
+    var origConsole = {};
+    var heartbeatInterval = null;
+    var frameCount = 0;
+    var lastFrameTime = Date.now();
+    var FREEZE_TIMEOUT = 2000;
+    var _errList = [];
+    var _errSeen = {};
+
+    // 🔒 SECURITY: Compute parent origin once for postMessage targeting
+    var _afParentOrigin = '*';
+    try { _afParentOrigin = window.parent.location.origin || '*'; } catch(e) { /* cross-origin srcdoc/blob iframe, must use wildcard */ }
+
+    function sendToParent(data) {
+        try {
+            if (window.parent !== window) {
+                // 🔒 SECURITY: Use parent origin when accessible, fall back to '*' for srcdoc/blob iframes.
+                // Parent side validates e.source === iframe.contentWindow before processing.
+                window.parent.postMessage(data, _afParentOrigin);
+            }
+        } catch(e) {}
+    }
+
+    // ERROR OVERLAY - thin toast bar at bottom of preview iframe
+    var _toastDismissTimer = null;
+    var _toastHovered = false;
+    function _showOverlay(msg, line) {
+        var key = String(msg) + (line || 0);
+        if (_errSeen[key]) return;
+        _errSeen[key] = 1;
+        _errList.push({ m: String(msg), l: line || 0 });
+        var el = document.getElementById('_studioErrOverlay');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = '_studioErrOverlay';
+            el.style.cssText = 'position:fixed;bottom:0;left:0;right:0;height:auto;max-height:60px;overflow:hidden;background:rgba(180,30,30,.92);color:#fff;font:12px/1.3 monospace;padding:6px 40px 6px 12px;z-index:99999;pointer-events:auto;transition:opacity .3s;display:flex;align-items:center;gap:8px;';
+            el.addEventListener('mouseenter', function() { _toastHovered = true; if (_toastDismissTimer) { clearTimeout(_toastDismissTimer); _toastDismissTimer = null; } });
+            el.addEventListener('mouseleave', function() { _toastHovered = false; _scheduleToastDismiss(); });
+            (document.body || document.documentElement).appendChild(el);
+        }
+        // Build compact one-line error display
+        var latestErr = _errList[_errList.length - 1];
+        var errText = latestErr.m.substring(0, 200);
+        if (latestErr.l) errText += ' (line ' + latestErr.l + ')';
+        if (_errList.length > 1) errText = '[' + _errList.length + ' errors] ' + errText;
+        var h = '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + errText + '</span>';
+        h += '<button id="artifact-fix-btn" style="background:#27ae60;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-weight:600;font-size:11px;flex-shrink:0;">Fix</button>';
+        h += '<button id="_studioErrClose" style="position:absolute;top:2px;right:6px;background:none;border:none;color:#fff;font-size:18px;cursor:pointer;line-height:1;padding:2px 6px;opacity:.8;">&times;</button>';
+        el.innerHTML = h;
+        el.style.opacity = '1';
+        el.style.pointerEvents = 'auto';
+        // Close button
+        var closeBtn = document.getElementById('_studioErrClose');
+        if (closeBtn) {
+            closeBtn.onclick = function() { _dismissToast(); };
+        }
+        // Fix button
+        var fixBtn = document.getElementById('artifact-fix-btn');
+        if (fixBtn) {
+            fixBtn.onclick = function() {
+                this.textContent = 'Fixing...';
+                this.disabled = true;
+                this.style.background = '#666';
+                var errors = _errList.map(function(e) { return e.m + (e.l ? ' (line ' + e.l + ')' : ''); });
+                if (errors.length === 0) errors.push(el.textContent);
+                sendToParent({ type: 'artifact-fix-request', errors: errors, message: errors.join('
+') });
+            };
+        }
+        // Auto-dismiss after 5 seconds
+        _scheduleToastDismiss();
+    }
+    function _scheduleToastDismiss() {
+        if (_toastDismissTimer) clearTimeout(_toastDismissTimer);
+        _toastDismissTimer = setTimeout(function() {
+            if (!_toastHovered) _dismissToast();
+        }, 5000);
+    }
+    function _dismissToast() {
+        if (_toastDismissTimer) { clearTimeout(_toastDismissTimer); _toastDismissTimer = null; }
+        var el = document.getElementById('_studioErrOverlay');
+        if (el) {
+            el.style.opacity = '0';
+            el.style.pointerEvents = 'none';
+            setTimeout(function() { try { el.remove(); } catch(e) {} }, 300);
+        }
+    }
+
+    // Console capture
+    // FIX: Use WeakSet-based circular reference protection in JSON.stringify
+    // to prevent "Converting circular structure to JSON" crashes when logging
+    // DOM elements, Three.js objects, or other self-referencing structures.
+    ['log', 'warn', 'error', 'info'].forEach(function(method) {
+        origConsole[method] = console[method];
+        console[method] = function() {
+            origConsole[method].apply(console, arguments);
+            var msg = Array.from(arguments).map(function(a) {
+                if (typeof a === 'object' && a !== null) {
+                    try {
+                        var seen = new WeakSet();
+                        return JSON.stringify(a, function(k, v) {
+                            if (typeof v === 'object' && v !== null) {
+                                if (seen.has(v)) return '[Circular]';
+                                seen.add(v);
+                            }
+                            return v;
+                        });
+                    } catch(e) { return String(a); }
+                }
+                return String(a);
+            }).join(' ');
+            logs.push({ type: method, message: msg, time: Date.now() });
+            sendToParent({ type: 'studio-console', log: { type: method, message: msg } });
+        };
+    });
+
+    // GLOBAL ERROR HANDLER - runtime errors
+    // FIX: Use addEventListener instead of assignment to not overwrite user's handlers
+    window.addEventListener('error', function(event) {
+        if (event.filename || event.lineno) {
+            var msg = event.message || 'Unknown error';
+            var stack = event.error && event.error.stack ? event.error.stack : '';
+            sendToParent({ type: 'preview-error', message: String(msg), stack: stack, filename: event.filename, lineno: event.lineno, colno: event.colno });
+            console.error('[Preview Error] ' + msg + ' at line ' + event.lineno);
+            _showOverlay(msg, event.lineno);
+        }
+    });
+
+    // UNHANDLED REJECTION HANDLER - promise errors
+    // FIX: Use addEventListener instead of assignment
+    window.addEventListener('unhandledrejection', function(event) {
+        var reason = event.reason;
+        var msg = reason ? (reason.message || String(reason)) : 'Unhandled promise rejection';
+        var stack = reason && reason.stack ? reason.stack : '';
+        sendToParent({ type: 'preview-error', message: msg, stack: stack, filename: 'promise', lineno: 0, colno: 0 });
+        console.error('[Unhandled Rejection] ' + msg);
+        _showOverlay(msg, 0);
+    });
+
+    // RESOURCE LOAD ERRORS - CDN failures, 404s on scripts/links/images
+    window.addEventListener('error', function(e) {
+        if (e.target && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK' || e.target.tagName === 'IMG')) {
+            var src = e.target.src || e.target.href || 'unknown';
+            var shortSrc = src.split('/').pop();
+            console.error('Failed to load resource: ' + src);
+            sendToParent({ type: 'preview-error', message: 'Failed to load: ' + shortSrc, stack: '', filename: src, lineno: 0, colno: 0 });
+            _showOverlay('Failed to load: ' + shortSrc, 0);
+        }
+    }, true);
+
+    // BABEL/SYNTAX ERROR SCANNING - scan DOM for Babel-rendered error elements
+    function _scanForErrors() {
+        var found = false;
+        try {
+            document.querySelectorAll('pre,div').forEach(function(el) {
+                if (found) return;
+                var t = el.textContent || '';
+                var s = el.getAttribute('style') || '';
+                // FIX: Only match explicit red color keywords, not hex colors like #f0f0f0
+                if (s.indexOf('red') === -1 && s.indexOf('rgb(2') === -1) return;
+                if (t.length <= 20) return;
+                // FIX: Only match specific JS error types, not generic "Error:" which catches legitimate text
+                if (t.indexOf('SyntaxError') > -1 || t.indexOf('TypeError') > -1 || t.indexOf('ReferenceError') > -1 || t.indexOf('RangeError') > -1 || t.indexOf('URIError') > -1 || t.indexOf('EvalError') > -1 || t.indexOf('Unexpected token') > -1 || t.indexOf('outside of function') > -1) {
+                    found = true;
+                    var msg = t.substring(0, 600).replace(/\s+/g, ' ');
+                    console.error('Syntax Error: ' + msg);
+                    sendToParent({ type: 'preview-error', message: 'Syntax Error: ' + msg, stack: '', filename: 'babel', lineno: 0, colno: 0 });
+                    _showOverlay(msg, 0);
+                }
+            });
+        } catch(e) {}
+    }
+    setTimeout(_scanForErrors, 200);
+    setTimeout(_scanForErrors, 600);
+    setTimeout(_scanForErrors, 1200);
+    setTimeout(_scanForErrors, 2000);
+
+    // MUTATION OBSERVER - catch errors as Babel adds them dynamically
+    // FIX: Debounce to at most once per 2 seconds to avoid 60fps overhead in games
+    var _scanDebounceTimer = null;
+    try {
+        new MutationObserver(function() {
+            if (!_scanDebounceTimer) {
+                _scanDebounceTimer = setTimeout(function() {
+                    _scanDebounceTimer = null;
+                    _scanForErrors();
+                }, 2000);
+            }
+        }).observe(document.body || document.documentElement, { childList: true, subtree: true });
+    } catch(e) {}
+
+    // BOOT STATUS
+    function sendBootStatus() {
+        sendToParent({ type: 'preview-boot', ok: true, time: Date.now() });
+        console.log('[Preview] Boot OK');
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', sendBootStatus);
+    } else {
+        sendBootStatus();
+    }
+
+    // HEARTBEAT / FREEZE DETECTION
+    function heartbeat() {
+        frameCount++;
+        lastFrameTime = Date.now();
+        sendToParent({ type: 'preview-heartbeat', frame: frameCount, time: lastFrameTime });
+    }
+
+    // Send an immediate heartbeat via setTimeout as a backup.
+    // If user code has an infinite loop that blocks before rAF fires,
+    // this setTimeout(0) may still sneak through before the blocking code runs,
+    // giving the parent at least one heartbeat to distinguish "booted then froze"
+    // from "never booted at all".
+    setTimeout(function() {
+        heartbeat();
+    }, 0);
+
+    // Also schedule heartbeat via setTimeout at 100ms as a second backup -
+    // fires even if requestAnimationFrame is blocked by a synchronous loop
+    // that starts after a small delay
+    setTimeout(function() {
+        if (frameCount < 2) {
+            heartbeat();
+        }
+    }, 100);
+
+    requestAnimationFrame(function firstFrame() {
+        heartbeat();
+        heartbeatInterval = setInterval(heartbeat, 500);
+    });
+    setInterval(function() {
+        var now = Date.now();
+        if (now - lastFrameTime > FREEZE_TIMEOUT) {
+            sendToParent({ type: 'preview-stalled', lastFrame: frameCount, stalledFor: now - lastFrameTime });
+        }
+    }, 1000);
+
+    // BOOT OK indicator
+    var _bootFrames = 0;
+    function _showBootOK() {
+        _bootFrames++;
+        if (_bootFrames === 1) {
+            var d = document.createElement('div');
+            d.style.cssText = 'position:fixed;top:8px;right:8px;background:rgba(34,197,94,.9);color:#fff;font:bold 11px/1 monospace;padding:6px 10px;border-radius:4px;z-index:99998;pointer-events:none;transition:opacity .3s;';
+            d.textContent = 'BOOT OK';
+            (document.body || document.documentElement).appendChild(d);
+            setTimeout(function() { d.style.opacity = '0'; setTimeout(function() { try { d.remove(); } catch(e) {} }, 300); }, 4000);
+        }
+    }
+    requestAnimationFrame(_showBootOK);
+
+    window.getConsoleLogs = function() { return logs; };
+    window._previewFrameCount = function() { return frameCount; };
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+<script id="startup-diagnostics">
+// === STARTUP DIAGNOSTICS ===
+console.log('[Preview] Scripts starting...');
+
+// Check if important libraries are loaded
+var _libs = {
+    THREE: typeof THREE !== 'undefined',
+    Phaser: typeof Phaser !== 'undefined',
+    PIXI: typeof PIXI !== 'undefined'
+};
+var _loadedLibs = Object.keys(_libs).filter(function(k) { return _libs[k]; });
+if (_loadedLibs.length > 0) {
+    console.log('[Preview] Libraries loaded: ' + _loadedLibs.join(', '));
+}
+
+// FIX #19: THREE.js OrbitControls fallback - provides basic controls when OrbitControls not loaded
+if (typeof THREE !== 'undefined' && typeof THREE.OrbitControls === 'undefined') {
+    THREE.createSafeControls = function(camera, domElement) {
+        console.log('[Preview] Using basic camera controls (OrbitControls not loaded)');
+        var controls = {
+            enabled: true,
+            target: new THREE.Vector3(0, 0, 0),
+            update: function() {},
+            dispose: function() {},
+            enableDamping: false,
+            dampingFactor: 0.05,
+            enableZoom: true,
+            enablePan: true,
+            enableRotate: true
+        };
+        // Basic mouse rotation
+        var isDragging = false;
+        var prevX = 0, prevY = 0;
+        var rotX = 0, rotY = 0;
+        var distance = camera.position.length();
+        domElement.addEventListener('mousedown', function(e) { isDragging = true; prevX = e.clientX; prevY = e.clientY; });
+        domElement.addEventListener('mouseup', function() { isDragging = false; });
+        domElement.addEventListener('mousemove', function(e) {
+            if (!isDragging || !controls.enabled) return;
+            var dx = e.clientX - prevX;
+            var dy = e.clientY - prevY;
+            rotY += dx * 0.01;
+            rotX = Math.max(-Math.PI/2, Math.min(Math.PI/2, rotX + dy * 0.01));
+            camera.position.x = distance * Math.sin(rotY) * Math.cos(rotX);
+            camera.position.y = distance * Math.sin(rotX);
+            camera.position.z = distance * Math.cos(rotY) * Math.cos(rotX);
+            camera.lookAt(controls.target);
+            prevX = e.clientX; prevY = e.clientY;
+        });
+        domElement.addEventListener('wheel', function(e) {
+            if (!controls.enabled || !controls.enableZoom) return;
+            distance = Math.max(1, Math.min(100, distance + e.deltaY * 0.01));
+            var dir = camera.position.clone().normalize();
+            camera.position.copy(dir.multiplyScalar(distance));
+        });
+        return controls;
+    };
+}
+
+// FIX: Robust DOMContentLoaded - handles case where DOM is already loaded
+// IMPORTANT: Save original FIRST, then define _domReady using it, then override
+var _origAddEventListener = document.addEventListener.bind(document);
+
+window._domReady = function(fn) {
+    if (document.readyState === 'loading') {
+        // Use ORIGINAL addEventListener to avoid infinite recursion
+        _origAddEventListener('DOMContentLoaded', fn);
+    } else {
+        // DOM already loaded, run immediately
+        setTimeout(fn, 0);
+    }
+};
+
+// Override addEventListener for DOMContentLoaded to use our robust version
+document.addEventListener = function(type, fn, options) {
+    if (type === 'DOMContentLoaded') {
+        window._domReady(fn);
+    } else {
+        _origAddEventListener(type, fn, options);
+    }
+};
+
+// FIX #18: Safe element getter - shows helpful overlay error instead of null crash
+window.getRequiredEl = function(id) {
+    var el = document.getElementById(id);
+    if (!el) {
+        console.error('[Preview] Missing required element: #' + id);
+        // Show overlay with helpful message
+        window._showMissingElementOverlay(id);
+        // Create dummy element to prevent null reference crash
+        el = document.createElement('div');
+        el.id = id;
+        el.style.cssText = 'width:100%;height:100%;background:#1a1a2e;color:#ff6b6b;display:flex;align-items:center;justify-content:center;';
+        el.textContent = 'Missing #' + id;
+        document.body.appendChild(el);
+        console.warn('[Preview] Created placeholder for missing #' + id);
+    }
+    return el;
+};
+
+// FIX #18b: Show overlay when element is missing
+window._showMissingElementOverlay = function(id) {
+    if (window._missingOverlayShown) return;
+    window._missingOverlayShown = true;
+
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif;';
+    overlay.innerHTML = '<div style="background:#1c1c1e;border-radius:16px;padding:32px;max-width:400px;color:white;text-align:center;">' +
+        '<h2 style="margin:0 0 16px;color:#ff6b6b;">Missing Element</h2>' +
+        '<p style="margin:0 0 12px;color:#aaa;">Your code references element <code style="background:#333;padding:2px 8px;border-radius:4px;">#' + String(id).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;") + '</code> which doesn\'t exist in the HTML.</p>' +
+        '<p style="margin:0 0 20px;color:#aaa;font-size:14px;">Add this to your index.html:</p>' +
+        '<code style="display:block;background:#333;padding:12px;border-radius:8px;text-align:left;font-size:14px;">&lt;div id=&quot;' + String(id).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;") + '&quot;&gt;&lt;/div&gt;</code>' +
+        '<button onclick="this.parentElement.parentElement.remove()" style="margin-top:20px;padding:12px 24px;background:linear-gradient(135deg,#667eea,#764ba2);border:none;border-radius:8px;color:white;font-size:16px;cursor:pointer;">Got it</button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+
+    // Report to parent
+    var _meOrigin = (function(){try{var p=new URLSearchParams(window.location.search);return p.get("parentOrigin")||window.location.origin}catch(e){return '*'}})();
+    window.parent.postMessage({
+        type: 'preview-error',
+        message: 'Missing required element: #' + String(id).substring(0, 100),
+        filename: 'index.html',
+        stack: 'Add <div id="' + String(id).substring(0, 100) + '"></div> to your HTML body'
+    }, _meOrigin);
+};
+
+console.log('[Preview] Document state: ' + document.readyState);
+</script>
+
+<script id="project-scripts">
+// Library loader: wait for all 1 CDN scripts before running user code
+(function() {
+    var _libsNeeded = 1;
+    var _libsLoaded = 0;
+    var _libsFailed = 0;
+    var _userCodeRan = false;
+    var _timeout = null;
+
+    function _runUserCode() {
+        if (_userCodeRan) return;
+        _userCodeRan = true;
+        if (_timeout) clearTimeout(_timeout);
+        console.log('[Preview] All libraries loaded (' + _libsLoaded + '/' + _libsNeeded + '), running user code...');
+        try {
+// === File: src/main.js (DOM-ready wrapped) ===
+window._domReady(function() {
+(function() {
+'use strict';
+try {
+
+window.__loopGuards = window.__loopGuards || [];
+var __loopGuardr25oxo=0;
+window.__loopGuards.push(function(){ __loopGuardr25oxo=0; });
+if (!window.__loopGuardPatched) {
+    window.__loopGuardPatched = true;
+    var _resetAll = function() { window.__loopGuards.forEach(function(r){ r(); }); };
+
+    // Patch requestAnimationFrame
+    var _origRAF = window.requestAnimationFrame;
+    window.requestAnimationFrame = function(cb) {
+        return _origRAF(function(ts) { _resetAll(); cb(ts); });
+    };
+
+    // Patch setInterval (game loops often use this)
+    var _origSetInterval = window.setInterval;
+    window.setInterval = function(cb, ms) {
+        var wrappedCb = typeof cb === 'function' ? function() { _resetAll(); cb(); } : cb;
+        return _origSetInterval(wrappedCb, ms);
+    };
+
+    // Patch setTimeout (recursive setTimeout patterns)
+    var _origSetTimeout = window.setTimeout;
+    window.setTimeout = function(cb, ms) {
+        var wrappedCb = typeof cb === 'function' ? function() { _resetAll(); cb(); } : cb;
+        return _origSetTimeout(wrappedCb, ms);
+    };
+}
+class AudioController {
+    constructor() {
+        this.audioContext = null;
+        this.masterGain = null;
+        this.musicGain = null;
+        this.sfxGain = null;
+        this.isInitialized = false;
+        this.isMusicEnabled = true;
+        this.nextNoteTime = 0;
+        this.tempo = 66;
+        this.stepIndex = 0;
+        this.musicPattern = [
+            { note: 98.0, len: 0.7, vol: 0.42 },
+            { note: 123.47, len: 0.5, vol: 0.34 },
+            { note: 92.5, len: 0.65, vol: 0.4 },
+            { note: 110.0, len: 0.55, vol: 0.36 },
+            { note: 82.41, len: 0.8, vol: 0.46 },
+            { note: 98.0, len: 0.5, vol: 0.35 },
+            { note: 77.78, len: 0.9, vol: 0.44 },
+            { note: 92.5, len: 0.6, vol: 0.38 }
+        ];
+    }
+
+    async init() {
+        if (this.isInitialized) {
+            return;
+        }
+
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) {
+            return;
+        }
+
+        this.audioContext = new AudioContextClass();
+        this.masterGain = this.audioContext.createGain();
+        this.musicGain = this.audioContext.createGain();
+        this.sfxGain = this.audioContext.createGain();
+
+        this.masterGain.gain.value = 1.0;
+        this.musicGain.gain.value = 0.85;
+        this.sfxGain.gain.value = 0.9;
+
+        this.musicGain.connect(this.masterGain);
+        this.sfxGain.connect(this.masterGain);
+        this.masterGain.connect(this.audioContext.destination);
+
+        this.nextNoteTime = this.audioContext.currentTime;
+        this.isInitialized = true;
+    }
+
+    async unlock() {
+        if (!this.isInitialized) {
+            await this.init();
+        }
+        if (!this.audioContext) {
+            return;
+        }
+        if (this.audioContext.state === "suspended") {
+            await this.audioContext.resume();
+        }
+    }
+
+    setMusicEnabled(enabled) {
+        this.isMusicEnabled = enabled;
+        if (!this.musicGain || !this.audioContext) {
+            return;
+        }
+        this.musicGain.gain.cancelScheduledValues(this.audioContext.currentTime);
+        this.musicGain.gain.linearRampToValueAtTime(
+            enabled ? 0.85 : 0,
+            this.audioContext.currentTime + 0.2
+        );
+    }
+
+    playShoot() {
+        this._playPulse(280, 0.08, 0.35);
+    }
+
+    playEnemyHit() {
+        this._playPulse(120, 0.12, 0.45);
+    }
+
+    _playPulse(frequency, duration, volume) {
+        if (!this.audioContext || !this.sfxGain) {
+            return;
+        }
+        const osc = this.audioContext.createOscillator();
+        const gain = this.audioContext.createGain();
+        const t = this.audioContext.currentTime;
+
+        osc.type = "square";
+        osc.frequency.setValueAtTime(frequency, t);
+        osc.frequency.exponentialRampToValueAtTime(Math.max(60, frequency * 0.45), t + duration);
+
+        gain.gain.setValueAtTime(0.0001, t);
+        gain.gain.exponentialRampToValueAtTime(volume, t + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+
+        osc.connect(gain);
+        gain.connect(this.sfxGain);
+
+        osc.start(t);
+        osc.stop(t + duration + 0.02);
+    }
+
+    update() {
+        if (!this.isInitialized || !this.audioContext || !this.isMusicEnabled) {
+            return;
+        }
+
+        const secondsPerBeat = 60 / this.tempo;
+        while (this.nextNoteTime < this.audioContext.currentTime + 0.16) { if(++__loopGuardr25oxo>1000000){throw new Error("Loop limit exceeded (1000000 iterations). Possible infinite loop.");}
+            const step = this.musicPattern[this.stepIndex];
+            this._playScaryNote(step.note, step.len * secondsPerBeat, step.vol, this.nextNoteTime);
+
+            this.stepIndex += 1;
+            if (this.stepIndex >= this.musicPattern.length) {
+                this.stepIndex = 0;
+            }
+
+            this.nextNoteTime += secondsPerBeat * 0.82;
+        }
+    }
+
+    _playScaryNote(frequency, duration, volume, startTime) {
+        if (!this.audioContext || !this.musicGain) {
+            return;
+        }
+
+        const oscA = this.audioContext.createOscillator();
+        const oscB = this.audioContext.createOscillator();
+        const lfo = this.audioContext.createOscillator();
+        const lfoGain = this.audioContext.createGain();
+        const noteGain = this.audioContext.createGain();
+        const filter = this.audioContext.createBiquadFilter();
+        const distortion = this.audioContext.createWaveShaper();
+
+        oscA.type = "sawtooth";
+        oscB.type = "triangle";
+        oscA.frequency.setValueAtTime(frequency, startTime);
+        oscB.frequency.setValueAtTime(frequency * 0.498, startTime);
+
+        lfo.type = "sine";
+        lfo.frequency.setValueAtTime(5.2, startTime);
+        lfoGain.gain.setValueAtTime(3.4, startTime);
+        lfo.connect(lfoGain);
+        lfoGain.connect(oscA.frequency);
+
+        filter.type = "bandpass";
+        filter.frequency.setValueAtTime(780, startTime);
+        filter.Q.value = 3.8;
+
+        distortion.curve = this._makeDistortionCurve(120);
+        distortion.oversample = "4x";
+
+        noteGain.gain.setValueAtTime(0.0001, startTime);
+        noteGain.gain.exponentialRampToValueAtTime(volume, startTime + 0.03);
+        noteGain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+        oscA.connect(filter);
+        oscB.connect(filter);
+        filter.connect(distortion);
+        distortion.connect(noteGain);
+        noteGain.connect(this.musicGain);
+
+        oscA.start(startTime);
+        oscB.start(startTime);
+        lfo.start(startTime);
+
+        const stopTime = startTime + duration + 0.03;
+        oscA.stop(stopTime);
+        oscB.stop(stopTime);
+        lfo.stop(stopTime);
+    }
+
+    _makeDistortionCurve(amount) {
+        const k = typeof amount === "number" ? amount : 50;
+        const nSamples = 44100;
+        const curve = new Float32Array(nSamples);
+        const deg = Math.PI / 180;
+        for (let i = 0; i < nSamples; i += 1) { if(++__loopGuardr25oxo>1000000){throw new Error("Loop limit exceeded (1000000 iterations). Possible infinite loop.");}
+            const x = (i * 2) / nSamples - 1;
+            curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
+        }
+        return curve;
+    }
+}
+
+class InputController {
+    constructor() {
+        this.keys = new Set();
+        this.touch = {
+            left: false,
+            right: false,
+            jumpQueued: false,
+            attackQueued: false
+        };
+        this._bindKeyboard();
+    }
+
+    _bindKeyboard() {
+        window.addEventListener("keydown", (event) => {
+            this.keys.add(event.code);
+        });
+
+        window.addEventListener("keyup", (event) => {
+            this.keys.delete(event.code);
+        });
+    }
+
+    bindTouchButtons(buttonMap) {
+        const bindHold = (button, onDown, onUp) => {
+            const down = (event) => {
+                event.preventDefault();
+                onDown();
+            };
+            const up = (event) => {
+                event.preventDefault();
+                onUp();
+            };
+            button.addEventListener("touchstart", down, { passive: false });
+            button.addEventListener("touchend", up, { passive: false });
+            button.addEventListener("mousedown", down);
+            button.addEventListener("mouseup", up);
+            button.addEventListener("mouseleave", up);
+        };
+
+        bindHold(buttonMap.leftBtn, () => {
+            this.touch.left = true;
+        }, () => {
+            this.touch.left = false;
+        });
+
+        bindHold(buttonMap.rightBtn, () => {
+            this.touch.right = true;
+        }, () => {
+            this.touch.right = false;
+        });
+
+        const jumpPress = (event) => {
+            event.preventDefault();
+            this.touch.jumpQueued = true;
+        };
+        buttonMap.jumpBtn.addEventListener("touchstart", jumpPress, { passive: false });
+        buttonMap.jumpBtn.addEventListener("mousedown", jumpPress);
+
+        const attackPress = (event) => {
+            event.preventDefault();
+            this.touch.attackQueued = true;
+        };
+        buttonMap.attackBtn.addEventListener("touchstart", attackPress, { passive: false });
+        buttonMap.attackBtn.addEventListener("mousedown", attackPress);
+    }
+
+    getMoveAxis() {
+        const leftPressed = this.keys.has("ArrowLeft") || this.keys.has("KeyA") || this.touch.left;
+        const rightPressed = this.keys.has("ArrowRight") || this.keys.has("KeyD") || this.touch.right;
+        if (leftPressed && !rightPressed) {
+            return -1;
+        }
+        if (rightPressed && !leftPressed) {
+            return 1;
+        }
+        return 0;
+    }
+
+    consumeJumpPress() {
+        const keyboardJump = this.keys.has("ArrowUp") || this.keys.has("KeyW") || this.keys.has("Space");
+        if (keyboardJump || this.touch.jumpQueued) {
+            this.touch.jumpQueued = false;
+            return true;
+        }
+        return false;
+    }
+
+    consumeAttackPress() {
+        const keyboardAttack = this.keys.has("KeyF") || this.keys.has("KeyK") || this.keys.has("KeyX");
+        if (keyboardAttack || this.touch.attackQueued) {
+            this.touch.attackQueued = false;
+            return true;
+        }
+        return false;
+    }
+
+    isPausePressed() {
+        return this.keys.has("KeyP");
+    }
+}
+
+class Game {
+    constructor(canvas, ui) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext("2d");
+        if (!this.ctx) {
+            throw new Error("Canvas 2D context not available.");
+        }
+
+        this.ui = ui;
+        this.audio = new AudioController();
+        this.input = new InputController();
+        this.input.bindTouchButtons({
+            leftBtn: ui.leftBtn,
+            rightBtn: ui.rightBtn,
+            jumpBtn: ui.jumpBtn,
+            attackBtn: ui.attackBtn
+        });
+
+        this.state = "menu";
+        this.lastTime = 0;
+        this.pausePressedLastFrame = false;
+        this.camera = { x: 0, y: 0 };
+        this.world = this._createWorld();
+        this.player = this._createPlayer();
+        this.projectiles = [];
+        this.score = 0;
+
+        this._bindUI();
+        this._resizeCanvas();
+        window.addEventListener("resize", () => this._resizeCanvas());
+    }
+
+    _createWorld() {
+        return {
+            width: 3200,
+            height: 980,
+            gravity: 2200,
+            floorY: 800,
+            platforms: [
+                { x: 220, y: 700, w: 260, h: 24, moving: false, vx: 0, minX: 220, maxX: 220 },
+                { x: 620, y: 640, w: 210, h: 24, moving: true, vx: 120, minX: 560, maxX: 920 },
+                { x: 980, y: 590, w: 220, h: 24, moving: false, vx: 0, minX: 980, maxX: 980 },
+                { x: 1320, y: 540, w: 200, h: 24, moving: true, vx: -140, minX: 1180, maxX: 1520 },
+                { x: 1680, y: 610, w: 260, h: 24, moving: false, vx: 0, minX: 1680, maxX: 1680 },
+                { x: 2080, y: 560, w: 220, h: 24, moving: true, vx: 130, minX: 1980, maxX: 2360 },
+                { x: 2480, y: 500, w: 240, h: 24, moving: false, vx: 0, minX: 2480, maxX: 2480 }
+            ],
+            coins: [
+                { x: 300, y: 655, r: 12, collected: false },
+                { x: 710, y: 595, r: 12, collected: false },
+                { x: 1080, y: 545, r: 12, collected: false },
+                { x: 1410, y: 495, r: 12, collected: false },
+                { x: 1780, y: 565, r: 12, collected: false },
+                { x: 2200, y: 515, r: 12, collected: false },
+                { x: 2590, y: 455, r: 12, collected: false },
+                { x: 2900, y: 740, r: 12, collected: false }
+            ],
+            enemies: [
+                { x: 520, y: 760, w: 34, h: 30, vx: 70, minX: 420, maxX: 650, dir: 1, bob: 0, alive: true },
+                { x: 1160, y: 550, w: 34, h: 30, vx: 60, minX: 1010, maxX: 1230, dir: -1, bob: 1.2, alive: true },
+                { x: 1880, y: 570, w: 34, h: 30, vx: 80, minX: 1710, maxX: 1930, dir: 1, bob: 2.4, alive: true },
+                { x: 2660, y: 460, w: 34, h: 30, vx: 75, minX: 2510, maxX: 2700, dir: -1, bob: 0.9, alive: true }
+            ]
+        };
+    }
+
+    _createPlayer() {
+        return {
+            x: 80,
+            y: 690,
+            w: 42,
+            h: 56,
+            vx: 0,
+            vy: 0,
+            speed: 360,
+            jumpPower: 760,
+            jumpsUsed: 0,
+            maxJumps: 2,
+            onGround: false,
+            state: "idle",
+            facing: 1,
+            animTimer: 0,
+            attackCooldown: 0
+        };
+    }
+
+    _bindUI() {
+        this.ui.playBtn.addEventListener("click", async () => {
+            await this.audio.unlock();
+            this.startGame();
+        });
+
+        this.ui.restartBtn.addEventListener("click", async () => {
+            await this.audio.unlock();
+            this.restartGame();
+        });
+
+        this.ui.pauseBtn.addEventListener("click", () => {
+            if (this.state === "playing") {
+                this.setState("paused");
+            } else if (this.state === "paused") {
+                this.setState("playing");
+            }
+        });
+
+        this.ui.resumeBtn.addEventListener("click", () => {
+            if (this.state === "paused") {
+                this.setState("playing");
+            }
+        });
+
+        this.ui.musicBtn.addEventListener("click", async () => {
+            await this.audio.unlock();
+            const nextEnabled = !this.audio.isMusicEnabled;
+            this.audio.setMusicEnabled(nextEnabled);
+            this.ui.musicBtn.textContent = nextEnabled ? "Music: On" : "Music: Off";
+        });
+    }
+
+    _resizeCanvas() {
+        const shell = this.canvas.parentElement;
+        if (!shell) {
+            return;
+        }
+        const rect = shell.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        this.canvas.width = Math.max(320, Math.floor(rect.width * dpr));
+        this.canvas.height = Math.max(240, Math.floor(rect.height * dpr));
+        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    setState(nextState) {
+        this.state = nextState;
+        this.ui.stateText.textContent = nextState.toUpperCase();
+
+        this.ui.menuOverlay.classList.toggle("overlay--visible", nextState === "menu");
+        this.ui.gameOverOverlay.classList.toggle("overlay--visible", nextState === "gameover");
+        this.ui.pauseOverlay.classList.toggle("overlay--visible", nextState === "paused");
+    }
+
+    startGame() {
+        this.setState("playing");
+    }
+
+    restartGame() {
+        this.world = this._createWorld();
+        this.player = this._createPlayer();
+        this.projectiles = [];
+        this.score = 0;
+        this.ui.scoreValue.textContent = "0";
+        this.ui.finalScore.textContent = "0";
+        this.camera.x = 0;
+        this.camera.y = 0;
+        this.setState("playing");
+    }
+
+    run() {
+        requestAnimationFrame((time) => this._loop(time));
+    }
+
+    _loop(time) {
+        const dt = Math.min(0.033, (time - this.lastTime) / 1000 || 0.016);
+        this.lastTime = time;
+
+        if (this.state === "playing") {
+            this._update(dt);
+        } else {
+            this._handlePauseToggle();
+        }
+
+        this.audio.update();
+        this._render();
+        requestAnimationFrame((nextTime) => this._loop(nextTime));
+    }
+
+    _handlePauseToggle() {
+        const pausePressed = this.input.isPausePressed();
+        if (pausePressed && !this.pausePressedLastFrame) {
+            if (this.state === "paused") {
+                this.setState("playing");
+            } else if (this.state === "playing") {
+                this.setState("paused");
+            }
+        }
+        this.pausePressedLastFrame = pausePressed;
+    }
+
+    _update(dt) {
+        this._handlePauseToggle();
+        this._updatePlatforms(dt);
+        this._updateEnemies(dt);
+        this._updatePlayer(dt);
+        this._updateProjectiles(dt);
+        this._collectCoins();
+        this._checkEnemyHit();
+        this._updateCamera();
+        this._checkFallDeath();
+    }
+
+    _updatePlatforms(dt) {
+        for (const platform of this.world.platforms) { if(++__loopGuardr25oxo>1000000){throw new Error("Loop limit exceeded (1000000 iterations). Possible infinite loop.");}
+            if (!platform.moving) {
+                continue;
+            }
+            platform.x += platform.vx * dt;
+            if (platform.x <= platform.minX) {
+                platform.x = platform.minX;
+                platform.vx = Math.abs(platform.vx);
+            } else if (platform.x >= platform.maxX) {
+                platform.x = platform.maxX;
+                platform.vx = -Math.abs(platform.vx);
+            }
+        }
+    }
+
+    _updateEnemies(dt) {
+        for (const enemy of this.world.enemies) { if(++__loopGuardr25oxo>1000000){throw new Error("Loop limit exceeded (1000000 iterations). Possible infinite loop.");}
+            if (!enemy.alive) {
+                continue;
+            }
+            enemy.x += enemy.vx * enemy.dir * dt;
+            enemy.bob += dt * 4;
+
+            if (enemy.x <= enemy.minX) {
+                enemy.x = enemy.minX;
+                enemy.dir = 1;
+            } else if (enemy.x + enemy.w >= enemy.maxX) {
+                enemy.x = enemy.maxX - enemy.w;
+                enemy.dir = -1;
+            }
+        }
+    }
+
+    _updatePlayer(dt) {
+        const player = this.player;
+        const moveAxis = this.input.getMoveAxis();
+
+        player.vx = moveAxis * player.speed;
+        if (moveAxis !== 0) {
+            player.facing = moveAxis > 0 ? 1 : -1;
+        }
+
+        const wantsJump = this.input.consumeJumpPress();
+        if (wantsJump && player.jumpsUsed < player.maxJumps) {
+            player.vy = -player.jumpPower;
+            player.jumpsUsed += 1;
+            player.onGround = false;
+        }
+
+        player.attackCooldown = Math.max(0, player.attackCooldown - dt);
+        const wantsAttack = this.input.consumeAttackPress();
+        if (wantsAttack && player.attackCooldown <= 0) {
+            this._spawnProjectile();
+            player.attackCooldown = 0.28;
+            this.audio.playShoot();
+        }
+
+        player.vy += this.world.gravity * dt;
+        player.x += player.vx * dt;
+        player.y += player.vy * dt;
+
+        this._resolveWorldBounds();
+        this._resolveCollisions();
+
+        player.animTimer += dt;
+        if (!player.onGround) {
+            player.state = "jump";
+        } else if (Math.abs(player.vx) > 1) {
+            player.state = "run";
+        } else {
+            player.state = "idle";
+        }
+    }
+
+    _spawnProjectile() {
+        const p = this.player;
+        const dir = p.facing;
+        this.projectiles.push({
+            x: p.x + p.w / 2 + dir * 18,
+            y: p.y + p.h * 0.45,
+            vx: dir * 680,
+            r: 6,
+            life: 1.2
+        });
+    }
+
+    _updateProjectiles(dt) {
+        for (let i = this.projectiles.length - 1; i >= 0; i -= 1) { if(++__loopGuardr25oxo>1000000){throw new Error("Loop limit exceeded (1000000 iterations). Possible infinite loop.");}
+            const shot = this.projectiles[i];
+            shot.x += shot.vx * dt;
+            shot.life -= dt;
+
+            if (shot.life <= 0 || shot.x < 0 || shot.x > this.world.width) {
+                this.projectiles.splice(i, 1);
+                continue;
+            }
+
+            for (const enemy of this.world.enemies) { if(++__loopGuardr25oxo>1000000){throw new Error("Loop limit exceeded (1000000 iterations). Possible infinite loop.");}
+                if (!enemy.alive) {
+                    continue;
+                }
+                const hit =
+                    shot.x + shot.r > enemy.x &&
+                    shot.x - shot.r < enemy.x + enemy.w &&
+                    shot.y + shot.r > enemy.y &&
+                    shot.y - shot.r < enemy.y + enemy.h;
+
+                if (hit) {
+                    enemy.alive = false;
+                    this.score += 25;
+                    this.ui.scoreValue.textContent = String(this.score);
+                    this.audio.playEnemyHit();
+                    this.projectiles.splice(i, 1);
+                    break;
+                }
+            }
+        }
+    }
+
+    _resolveWorldBounds() {
+        const player = this.player;
+        if (player.x < 0) {
+            player.x = 0;
+        }
+        if (player.x + player.w > this.world.width) {
+            player.x = this.world.width - player.w;
+        }
+
+        if (player.y + player.h >= this.world.floorY) {
+            player.y = this.world.floorY - player.h;
+            player.vy = 0;
+            player.onGround = true;
+            player.jumpsUsed = 0;
+        } else {
+            player.onGround = false;
+        }
+    }
+
+    _resolveCollisions() {
+        const p = this.player;
+
+        for (const platform of this.world.platforms) { if(++__loopGuardr25oxo>1000000){throw new Error("Loop limit exceeded (1000000 iterations). Possible infinite loop.");}
+            const overlapX = p.x < platform.x + platform.w && p.x + p.w > platform.x;
+            if (!overlapX) {
+                continue;
+            }
+
+            const previousBottom = p.y + p.h - p.vy * 0.016;
+            const currentBottom = p.y + p.h;
+
+            const landing = previousBottom <= platform.y + 4 && currentBottom >= platform.y;
+            if (landing && p.vy >= 0) {
+                p.y = platform.y - p.h;
+                p.vy = 0;
+                p.onGround = true;
+                p.jumpsUsed = 0;
+                if (platform.moving) {
+                    p.x += platform.vx * 0.016;
+                }
+            }
+        }
+    }
+
+    _collectCoins() {
+        const p = this.player;
+        const centerX = p.x + p.w / 2;
+        const centerY = p.y + p.h / 2;
+
+        for (const coin of this.world.coins) { if(++__loopGuardr25oxo>1000000){throw new Error("Loop limit exceeded (1000000 iterations). Possible infinite loop.");}
+            if (coin.collected) {
+                continue;
+            }
+            const dx = centerX - coin.x;
+            const dy = centerY - coin.y;
+            const distanceSquared = dx * dx + dy * dy;
+            const pickupRadius = coin.r + Math.min(p.w, p.h) * 0.35;
+            if (distanceSquared <= pickupRadius * pickupRadius) {
+                coin.collected = true;
+                this.score += 10;
+                this.ui.scoreValue.textContent = String(this.score);
+            }
+        }
+    }
+
+    _checkEnemyHit() {
+        const p = this.player;
+        for (const enemy of this.world.enemies) { if(++__loopGuardr25oxo>1000000){throw new Error("Loop limit exceeded (1000000 iterations). Possible infinite loop.");}
+            if (!enemy.alive) {
+                continue;
+            }
+            const hit =
+                p.x < enemy.x + enemy.w &&
+                p.x + p.w > enemy.x &&
+                p.y < enemy.y + enemy.h &&
+                p.y + p.h > enemy.y;
+            if (hit) {
+                this.ui.finalScore.textContent = String(this.score);
+                this.setState("gameover");
+                return;
+            }
+        }
+    }
+
+    _updateCamera() {
+        const viewWidth = this.canvas.clientWidth;
+        const targetX = this.player.x + this.player.w / 2 - viewWidth / 2;
+        const maxX = this.world.width - viewWidth;
+        const clampedTarget = Math.max(0, Math.min(targetX, Math.max(0, maxX)));
+        this.camera.x += (clampedTarget - this.camera.x) * 0.1;
+    }
+
+    _checkFallDeath() {
+        if (this.player.y > this.world.height + 200) {
+            this.ui.finalScore.textContent = String(this.score);
+            this.setState("gameover");
+        }
+    }
+
+    _render() {
+        const ctx = this.ctx;
+        const width = this.canvas.clientWidth;
+        const height = this.canvas.clientHeight;
+
+        ctx.clearRect(0, 0, width, height);
+        this._drawBackground(ctx, width, height);
+
+        ctx.save();
+        ctx.translate(-this.camera.x, 0);
+
+        this._drawLavaMist(ctx, width, height);
+        this._drawBackgroundRuins(ctx, height);
+        this._drawGround(ctx);
+        this._drawSpikes(ctx);
+        this._drawPlatforms(ctx);
+        this._drawTorches(ctx);
+        this._drawCoins(ctx);
+        this._drawProjectiles(ctx);
+        this._drawEnemies(ctx);
+        this._drawPlayer(ctx);
+
+        ctx.restore();
+    }
+
+    _drawBackground(ctx, width, height) {
+        const gradient = ctx.createLinearGradient(0, 0, 0, height);
+        gradient.addColorStop(0, "#2f132b");
+        gradient.addColorStop(0.5, "#1f1127");
+        gradient.addColorStop(1, "#130f1f");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.fillStyle = "rgba(255,120,120,0.06)";
+        for (let i = 0; i < 24; i += 1) { if(++__loopGuardr25oxo>1000000){throw new Error("Loop limit exceeded (1000000 iterations). Possible infinite loop.");}
+            const x = i * 150 - (this.camera.x * 0.1);
+            const h = 60 + (i % 5) * 20;
+            ctx.beginPath();
+            ctx.moveTo(x, height - 120);
+            ctx.lineTo(x + 50, height - 120 - h);
+            ctx.lineTo(x + 100, height - 120);
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+
+    _drawLavaMist(ctx, width, height) {
+        const pulse = (Math.sin(performance.now() * 0.0015) + 1) * 0.5;
+        ctx.fillStyle = `rgba(255, 80, 80, ${0.06 + pulse * 0.05})`;
+        ctx.fillRect(this.camera.x, height - 180, width + 120, 180);
+    }
+
+    _drawBackgroundRuins(ctx, height) {
+        for (let i = 0; i < 16; i += 1) { if(++__loopGuardr25oxo>1000000){throw new Error("Loop limit exceeded (1000000 iterations). Possible infinite loop.");}
+            const x = i * 220 + 80;
+            const offset = (i % 3) * 20;
+            ctx.fillStyle = "rgba(85, 70, 110, 0.35)";
+            ctx.fillRect(x, height - 320 - offset, 36, 200 + offset);
+            ctx.fillRect(x + 12, height - 350 - offset, 12, 30);
+            ctx.fillStyle = "rgba(120, 90, 140, 0.3)";
+            ctx.fillRect(x - 10, height - 130, 56, 14);
+        }
+    }
+
+    _drawGround(ctx) {
+        ctx.fillStyle = "#2f2a46";
+        ctx.fillRect(0, this.world.floorY, this.world.width, 220);
+
+        ctx.fillStyle = "#4a3b63";
+        ctx.fillRect(0, this.world.floorY, this.world.width, 14);
+
+        for (let x = 0; x < this.world.width; x += 34) { if(++__loopGuardr25oxo>1000000){throw new Error("Loop limit exceeded (1000000 iterations). Possible infinite loop.");}
+            ctx.fillStyle = x % 68 === 0 ? "#3a3154" : "#342c4d";
+            ctx.fillRect(x, this.world.floorY + 24, 30, 12);
+        }
+    }
+
+    _drawSpikes(ctx) {
+        ctx.fillStyle = "#7a6c90";
+        for (let i = 0; i < 70; i += 1) { if(++__loopGuardr25oxo>1000000){throw new Error("Loop limit exceeded (1000000 iterations). Possible infinite loop.");}
+            const x = i * 46 + 10;
+            const y = this.world.floorY - 2;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + 10, y - 18);
+            ctx.lineTo(x + 20, y);
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+
+    _drawPlatforms(ctx) {
+        for (const platform of this.world.platforms) { if(++__loopGuardr25oxo>1000000){throw new Error("Loop limit exceeded (1000000 iterations). Possible infinite loop.");}
+            ctx.fillStyle = platform.moving ? "#7a4f8f" : "#5f4b7a";
+            ctx.fillRect(platform.x, platform.y, platform.w, platform.h);
+
+            ctx.fillStyle = "rgba(255,170,220,0.22)";
+            ctx.fillRect(platform.x, platform.y, platform.w, 5);
+
+            for (let x = platform.x + 6; x < platform.x + platform.w - 6; x += 18) { if(++__loopGuardr25oxo>1000000){throw new Error("Loop limit exceeded (1000000 iterations). Possible infinite loop.");}
+                ctx.fillStyle = "rgba(35,24,52,0.45)";
+                ctx.fillRect(x, platform.y + 10, 10, 8);
+            }
+        }
+    }
+
+    _drawTorches(ctx) {
+        for (let i = 0; i < 12; i += 1) { if(++__loopGuardr25oxo>1000000){throw new Error("Loop limit exceeded (1000000 iterations). Possible infinite loop.");}
+            const x = i * 260 + 120;
+            const y = this.world.floorY - 52;
+            const flame = (Math.sin(performance.now() * 0.01 + i) + 1) * 0.5;
+
+            ctx.fillStyle = "#3f2d24";
+            ctx.fillRect(x, y, 8, 30);
+
+            ctx.fillStyle = `rgba(255, 120, 70, ${0.35 + flame * 0.25})`;
+            ctx.beginPath();
+            ctx.arc(x + 4, y - 6, 10 + flame * 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = "#ffb35c";
+            ctx.beginPath();
+            ctx.arc(x + 4, y - 8, 5 + flame * 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    _drawCoins(ctx) {
+        for (const coin of this.world.coins) { if(++__loopGuardr25oxo>1000000){throw new Error("Loop limit exceeded (1000000 iterations). Possible infinite loop.");}
+            if (coin.collected) {
+                continue;
+            }
+            ctx.save();
+            ctx.translate(coin.x, coin.y);
+            ctx.rotate(Math.sin(performance.now() * 0.004 + coin.x * 0.01) * 0.15);
+            ctx.fillStyle = "#ffd166";
+            ctx.beginPath();
+            ctx.arc(0, 0, coin.r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "#ffefb0";
+            ctx.beginPath();
+            ctx.arc(-3, -3, coin.r * 0.35, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+
+    _drawProjectiles(ctx) {
+        for (const shot of this.projectiles) { if(++__loopGuardr25oxo>1000000){throw new Error("Loop limit exceeded (1000000 iterations). Possible infinite loop.");}
+            ctx.fillStyle = "#ff9f5a";
+            ctx.beginPath();
+            ctx.arc(shot.x, shot.y, shot.r, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = "rgba(255, 210, 130, 0.7)";
+            ctx.beginPath();
+            ctx.arc(shot.x - Math.sign(shot.vx) * 4, shot.y, shot.r * 0.6, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    _drawEnemies(ctx) {
+        for (const enemy of this.world.enemies) { if(++__loopGuardr25oxo>1000000){throw new Error("Loop limit exceeded (1000000 iterations). Possible infinite loop.");}
+            if (!enemy.alive) {
+                continue;
+            }
+            const bobY = Math.sin(enemy.bob) * 2;
+            const ex = enemy.x;
+            const ey = enemy.y + bobY;
+
+            ctx.save();
+            ctx.translate(ex + enemy.w / 2, ey + enemy.h / 2);
+            ctx.scale(enemy.dir, 1);
+
+            ctx.fillStyle = "#6a1f37";
+            ctx.beginPath();
+            ctx.roundRect(-17, -14, 34, 28, 8);
+            ctx.fill();
+
+            ctx.fillStyle = "#93284d";
+            ctx.beginPath();
+            ctx.arc(-8, -4, 5, 0, Math.PI * 2);
+            ctx.arc(8, -4, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = "#ffe6ef";
+            ctx.beginPath();
+            ctx.arc(-7, -4, 2.5, 0, Math.PI * 2);
+            ctx.arc(7, -4, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = "#2f0f1d";
+            ctx.beginPath();
+            ctx.arc(-6, -4, 1.1, 0, Math.PI * 2);
+            ctx.arc(8, -4, 1.1, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = "#ffd2df";
+            ctx.beginPath();
+            ctx.moveTo(-10, 10);
+            ctx.lineTo(-4, 4);
+            ctx.lineTo(-1, 10);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(10, 10);
+            ctx.lineTo(4, 4);
+            ctx.lineTo(1, 10);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+        }
+    }
+
+    _drawPlayer(ctx) {
+        const p = this.player;
+        const frame = Math.floor(p.animTimer * 10) - Math.floor(Math.floor(p.animTimer * 10) / 4) * 4;
+        const bounce = p.state === "idle" ? Math.sin(p.animTimer * 4) * 1.5 : 0;
+        const legOffset = p.state === "run" ? (frame % 2 === 0 ? 4 : -4) : (p.state === "jump" ? -2 : 0);
+        const armOffset = p.state === "run" ? (frame % 2 === 0 ? -3 : 3) : (p.state === "jump" ? -4 : 0);
+
+        ctx.save();
+        ctx.translate(p.x + p.w / 2, p.y + p.h / 2 + bounce);
+        ctx.scale(p.facing, 1);
+
+        ctx.fillStyle = "#ffd8d8";
+        ctx.beginPath();
+        ctx.moveTo(-12, -20);
+        ctx.lineTo(-8, -32);
+        ctx.lineTo(-2, -20);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(12, -20);
+        ctx.lineTo(8, -32);
+        ctx.lineTo(2, -20);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = "#ff5a5f";
+        ctx.beginPath();
+        ctx.roundRect(-14, -22, 28, 32, 10);
+        ctx.fill();
+
+        ctx.fillStyle = "#ff8a8f";
+        ctx.beginPath();
+        ctx.ellipse(0, -4, 8, 10, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.arc(-6, -12, 4, 0, Math.PI * 2);
+        ctx.arc(6, -12, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#2f3555";
+        ctx.beginPath();
+        ctx.arc(-5 + (p.facing * 0.7), -11.5, 1.8, 0, Math.PI * 2);
+        ctx.arc(7 + (p.facing * 0.7), -11.5, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "rgba(255, 200, 210, 0.8)";
+        ctx.beginPath();
+        ctx.arc(-10, -6, 2.2, 0, Math.PI * 2);
+        ctx.arc(10, -6, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = "#8e2730";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        if (p.state === "jump") {
+            ctx.arc(0, -2, 3.2, 0, Math.PI * 2);
+        } else {
+            ctx.arc(0, -3, 4.5, 0, Math.PI, false);
+        }
+        ctx.stroke();
+
+        ctx.fillStyle = "#ff5a5f";
+        ctx.beginPath();
+        ctx.roundRect(-19, -10 + armOffset, 6, 15, 4);
+        ctx.roundRect(13, -10 - armOffset, 6, 15, 4);
+        ctx.fill();
+
+        if (p.attackCooldown > 0.18) {
+            ctx.fillStyle = "#ffb36b";
+            ctx.beginPath();
+            ctx.arc(20, -2, 5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        ctx.fillStyle = "#d93f45";
+        ctx.beginPath();
+        ctx.roundRect(-11, 8, 8, 10 + legOffset, 4);
+        ctx.roundRect(3, 8, 8, 10 - legOffset, 4);
+        ctx.fill();
+
+        ctx.restore();
+    }
+}
+
+const canvas = document.getElementById("gameCanvas");
+const ui = {
+    scoreValue: document.getElementById("scoreValue"),
+    stateText: document.getElementById("stateText"),
+    playBtn: document.getElementById("playBtn"),
+    restartBtn: document.getElementById("restartBtn"),
+    resumeBtn: document.getElementById("resumeBtn"),
+    pauseBtn: document.getElementById("pauseBtn"),
+    musicBtn: document.getElementById("musicBtn"),
+    finalScore: document.getElementById("finalScore"),
+    menuOverlay: document.getElementById("menuOverlay"),
+    gameOverOverlay: document.getElementById("gameOverOverlay"),
+    pauseOverlay: document.getElementById("pauseOverlay"),
+    leftBtn: document.getElementById("leftBtn"),
+    rightBtn: document.getElementById("rightBtn"),
+    jumpBtn: document.getElementById("jumpBtn"),
+    attackBtn: document.getElementById("attackBtn")
+};
+
+try {
+    const game = new Game(canvas, ui);
+    game.run();
+} catch (error) {
+    console.error("Failed to initialize game:", error);
+}
+// Expose classes/objects to global scope
+window.AudioController = AudioController;
+window.InputController = InputController;
+window.Game = Game;
+window.__loopGuardr25oxo = __loopGuardr25oxo;
+window.canvas = canvas;
+} catch(__e__) {
+    console.error('[src/main.js] Error:', __e__.message);
+    throw __e__;
+}
+})();
+});
+        } catch(e) {
+            console.error('[Preview] User code error:', e.message);
+            throw e;
+        }
+    }
+
+    function _onScriptEvent() {
+        _libsLoaded++;
+        if (_libsLoaded + _libsFailed >= _libsNeeded) _runUserCode();
+    }
+
+    function _onScriptError(src) {
+        _libsFailed++;
+        console.error('[Preview] Failed to load library: ' + src);
+        if (_libsLoaded + _libsFailed >= _libsNeeded) _runUserCode();
+    }
+
+    // Attach load/error handlers to all CDN script tags
+    var _scripts = document.querySelectorAll('script[src]');
+    if (_scripts.length === 0 || _libsNeeded === 0) {
+        _runUserCode();
+    } else {
+        var _counted = 0;
+        _scripts.forEach(function(s) {
+            if (s.src && (s.src.indexOf('http') === 0 || s.src.indexOf('//') === 0)) {
+                _counted++;
+                // FIX: Synchronous scripts (no async/defer) are already fully parsed
+                // and executed by the time this inline script runs. Their load events
+                // have already fired, so attaching listeners now would never trigger.
+                if (s.dataset && s.dataset.loaded === 'true') {
+                    _onScriptEvent();
+                } else if (!s.async && !s.defer && s.src) {
+                    // Synchronous script already loaded when inline code executes
+                    s.dataset.loaded = 'true';
+                    _onScriptEvent();
+                } else {
+                    // Async/deferred scripts may still be loading
+                    s.addEventListener('load', function() { s.dataset.loaded = 'true'; _onScriptEvent(); });
+                    s.addEventListener('error', function() { _onScriptError(s.src); });
+                }
+            }
+        });
+        // If we found fewer CDN scripts than expected, adjust count
+        if (_counted < _libsNeeded) _libsNeeded = _counted;
+        if (_counted === 0) _runUserCode();
+    }
+
+    // Safety timeout: run user code after 5 seconds regardless
+    _timeout = setTimeout(function() {
+        if (!_userCodeRan) {
+            console.warn('[Preview] Library load timeout (5s) - running user code anyway');
+            _runUserCode();
+        }
+    }, 5000);
+})();
+</script>
+</body>
+</html>
