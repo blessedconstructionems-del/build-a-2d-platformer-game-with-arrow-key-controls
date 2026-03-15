@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Platformer - Double Jump Quest</title>
+    <link rel="stylesheet" href="src/styles/main.css">
+</head>
+<body>
+    <main class="app">
+        <header class="hud" aria-label="Game HUD">
+            <div class="hud__left">
+                <span class="hud__label">Score</span>
+                <span id="scoreValue" class="hud__value">0</span>
+            </div>
+            <div class="hud__center">
+                <span id="stateText" class="hud__state">MENU</span>
+            </div>
+            <div class="hud__right hud__right--controls">
+                <button id="musicBtn" class="btn btn--small" type="button" aria-label="Toggle music">
+                    Music: On
+                </button>
+                <button id="pauseBtn" class="btn btn--small" type="button" aria-label="Pause game">
+                    Pause
+                </button>
+            </div>
+        </header>
+
+        <section class="game-shell" aria-label="Platformer game area">
+            <canvas id="gameCanvas" aria-label="2D platformer game canvas"></canvas>
+
+            <div id="menuOverlay" class="overlay overlay--visible" role="dialog" aria-modal="true">
+                <div class="card">
+                    <h1>Double Jump Quest: Evil World</h1>
+                    <p>Collect cursed coins, dodge little fiends, and now blast them with power shots.</p>
+                    <ul>
+                        <li>Move: Arrow Keys or A/D</li>
+                        <li>Jump: Up Arrow / W / Space (double jump enabled)</li>
+                        <li>Attack: F / K / X (or Attack button)</li>
+                        <li>Avoid enemies or you'll lose and restart</li>
+                        <li>Pause: P or button</li>
+                        <li>Music starts when you press Play</li>
+                    </ul>
+                    <button id="playBtn" class="btn" type="button">Play</button>
+                </div>
+            </div>
+
+            <div id="gameOverOverlay" class="overlay" role="dialog" aria-modal="true">
+                <div class="card">
+                    <h2>Game Over</h2>
+                    <p>Final Score: <strong id="finalScore">0</strong/p>
+                    <button id="restartBtn" class="btn" type="button">Restart</button>
+                </div>
+            </div>
+
+            <div id="pauseOverlay" class="overlay" role="dialog" aria-modal="false">
+                <div class="card">
+                    <h2>Paused</h2>
+                    <p>Press P or tap Resume to continue.</p>
+                    <button id="resumeBtn" class="btn" type="button">Resume</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="touch-controls" aria-label="Touch controls">
+            <div class="touch-controls__row touch-controls__row--4">
+                <button id="leftBtn" class="touch-btn" type="button" aria-label="Move left">◀</button>
+                <button id="rightBtn" class="touch-btn" type="button" aria-label="Move right">▶</button>
+                <button id="jumpBtn" class="touch-btn touch-btn--jump" type="button" aria-label="Jump">⤒</button>
+                <button id="attackBtn" class="touch-btn touch-btn--attack" type="button" aria-label="Attack">✦</button>
+            </div>
+        </section>
+    </main>
+
+    <script src="src/main.js"></script>
+</body>
+</html>
